@@ -1,3 +1,5 @@
+/* eslint-env jest */
+
 import { getImagePath } from './getImagePath';
 
 describe('getImagePath', () => {

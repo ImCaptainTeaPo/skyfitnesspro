@@ -75,6 +75,10 @@ npm run dev
 yarn dev
 ```
 
+## Запуск тестов
+
+npm test
+
 ## Приложение будет доступно по адресу: http://localhost:3000
 
 ---

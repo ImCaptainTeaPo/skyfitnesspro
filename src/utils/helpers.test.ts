@@ -1,4 +1,5 @@
 /* eslint-env jest */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import {
   filterCoursesByIds,
@@ -6,13 +7,19 @@ import {
   cutWorkoutName,
   calculateCourseProgress,
 } from './helpers';
+import type { CourseCardType } from '@/types/courseCard';
+import type {
+  CourseType,
+  ApiResponseCourseProgressType,
+} from '@/types/courseType';
 
 describe('filterCoursesByIds', () => {
   it('возвращает только курсы с нужными id', () => {
-    const courses = [
-      { _id: '1', name: 'Course 1' } as any,
-      { _id: '2', name: 'Course 2' } as any,
-      { _id: '3', name: 'Course 3' } as any,
+    // Берём минимальные заглушки и приводим к нужному типу
+    const courses: CourseCardType[] = [
+      { _id: '1' } as CourseCardType,
+      { _id: '2' } as CourseCardType,
+      { _id: '3' } as CourseCardType,
     ];
 
     const result = filterCoursesByIds(courses, ['1', '3']);
@@ -58,21 +65,26 @@ describe('cutWorkoutName', () => {
 
 describe('calculateCourseProgress', () => {
   it('считает прогресс курса в процентах', () => {
-    const courses = [
+    const courses: CourseType[] = [
       {
         _id: 'course1',
-        workouts: [{ _id: 'w1' }, { _id: 'w2' }, { _id: 'w3' }, { _id: 'w4' }],
-      } as any,
+        workouts: [
+          { _id: 'w1' } as any,
+          { _id: 'w2' } as any,
+          { _id: 'w3' } as any,
+          { _id: 'w4' } as any,
+        ],
+      } as CourseType,
     ];
 
-    const apiData = {
+    const apiData: ApiResponseCourseProgressType = {
       workoutsProgress: [
         { workoutId: 'w1', workoutCompleted: true },
         { workoutId: 'w2', workoutCompleted: true },
         { workoutId: 'w3', workoutCompleted: false },
         { workoutId: 'w4', workoutCompleted: false },
       ],
-    } as any;
+    } as ApiResponseCourseProgressType;
 
     const progress = calculateCourseProgress('course1', courses, apiData);
 
@@ -80,7 +92,9 @@ describe('calculateCourseProgress', () => {
   });
 
   it('возвращает 0, если курс не найден или нет тренировок', () => {
-    const courses = [{ _id: 'course-without-workouts', workouts: [] } as any];
+    const courses: CourseType[] = [
+      { _id: 'course-without-workouts', workouts: [] } as unknown as CourseType,
+    ];
 
     const progress1 = calculateCourseProgress('unknown', courses, undefined);
     const progress2 = calculateCourseProgress(

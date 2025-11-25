@@ -53,7 +53,7 @@ export default function Main() {
             key={course._id}
             course={course}
             imageSrc={`/img/cards/${getImagePath(course.nameEN)}`}
-            priority={index === 0}
+            priority
           />
         ))}
       </div>

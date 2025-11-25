@@ -48,7 +48,7 @@ export default function Main() {
     <>
       <Title />
       <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-14 pt-12 w-full">
-        {courses.map((course, index) => (
+        {courses.map((course) => (
           <CourseCard
             key={course._id}
             course={course}

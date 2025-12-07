@@ -13,14 +13,14 @@ import {
 } from '@/store/features/courseSlice';
 import { openModal } from '@/store/features/modalSlice';
 
-interface CardsProps {
+interface CourseCardProps {
   course: CourseCardType;
   imageSrc: string;
   priority?: boolean;
   isProgress?: boolean;
   progress?: number;
   onOpenTrainings?: (course: CourseCardType) => void;
-  onAuthRequest?: () => void; // открытие модалки авторизации
+  onResetCourseProgress?: (course: CourseCardType) => void;
 }
 
 export default function CourseCard({
@@ -30,7 +30,8 @@ export default function CourseCard({
   isProgress = false,
   progress = 0,
   onOpenTrainings,
-}: CardsProps) {
+  onResetCourseProgress,
+}: CourseCardProps) {
   const dispatch = useAppDispatch();
   const favoriteCourses = useAppSelector(
     (state) => state.courses.favoriteCourses,
@@ -42,7 +43,11 @@ export default function CourseCard({
   const handleOpen = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    onOpenTrainings?.(course);
+    if (isProgress && (progress ?? 0) === 100 && onResetCourseProgress) {
+      onResetCourseProgress(course);
+    } else {
+      onOpenTrainings?.(course);
+    }
   };
 
   const handleToggleCourse = async (e: React.MouseEvent) => {
@@ -72,6 +77,76 @@ export default function CourseCard({
   };
 
   const icon = isAuth ? (isAdded ? '-' : '+') : '+';
+
+  if (isProgress) {
+    return (
+      <div className="bg-white rounded-[30px] max-h-max shadow-[0_20px_50px_rgba(0,0,0,0.1)] w-full sm:w-[360px] transform transition-transform duration-300 hover:scale-[1.03] gap-5">
+        <div className="relative w-full h-[325px] rounded-[30px] ">
+          <Image
+            src={imageSrc}
+            alt={course.nameRU}
+            fill
+            className="object-cover rounded-[30px]"
+            priority={priority}
+          />
+          <div
+            onClick={handleToggleCourse}
+            className="absolute top-4 right-4 w-8 h-8 bg-white rounded-[50%] flex justify-center items-center shadow cursor-[url('/img/cursor_cource.svg'),_auto] hover:bg-gray-100 transition group"
+          >
+            <span className="text-2xl font-bold text-gray-500 leading-none">
+              {icon}
+            </span>
+            <div className="absolute top-12 right-1 translate-x-1/2 bg-white text-black border border-black rounded-md px-3 py-1 text-sm opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 hidden sm:block">
+              {isAdded ? 'Удалить курс' : 'Добавить курс'}
+            </div>
+          </div>
+        </div>
+
+        <div className="px-7.5 pt-6 pb-3.5 flex flex-col gap-5">
+          <h2 className="font-medium text-3xl text-black">{course.nameRU}</h2>
+
+          <div className="flex gap-2 text-sm text-gray-700 flex-wrap">
+            <div className="flex items-center gap-1 bg-gray-100 px-3 py-1 rounded-full">
+              <Calendar size={16} />
+              <span>{course.durationInDays} дней</span>
+            </div>
+            <div className="flex items-center gap-1 bg-gray-100 px-3 py-1 rounded-full">
+              <Clock size={16} />
+              <span>
+                {course.dailyDurationInMinutes.from}-
+                {course.dailyDurationInMinutes.to} мин/день
+              </span>
+            </div>
+            <div className="flex items-center gap-1 bg-gray-100 px-3 py-1 rounded-full w-max text-sm text-gray-700">
+              <BarChart size={16} color="blue" />
+              <span>{course.difficulty}</span>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-10">
+            <div>
+              <p className="text-lg font-normal pb-2.5">
+                Прогресс <span>{progress}%</span>
+              </p>
+              <ProgressBar progress={progress} />
+            </div>
+
+            <Button
+              text={
+                progress === 0
+                  ? 'Начать'
+                  : progress === 100
+                    ? 'Начать заново'
+                    : 'Продолжить'
+              }
+              className="h-12.5 w-full text-lg"
+              onClick={handleOpen}
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <Link
@@ -120,7 +195,7 @@ export default function CourseCard({
           </div>
         </div>
 
-        {isProgress && (
+        {false && (
           <div className="flex flex-col gap-10">
             <div>
               <p className="text-lg font-normal pb-2.5">

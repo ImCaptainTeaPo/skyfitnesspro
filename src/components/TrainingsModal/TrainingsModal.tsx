@@ -20,6 +20,7 @@ interface TrainingsModalProps {
   courseProgress?: {
     [workoutId: string]: { workoutCompleted: boolean };
   } | null;
+  courseId?: string | null;
 }
 
 export default function TrainingsModal({
@@ -29,13 +30,14 @@ export default function TrainingsModal({
   trainings,
   loading = false,
   courseProgress = {},
+  courseId = null,
 }: TrainingsModalProps) {
-  const [selected, setSelected] = useState<string[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const dispatch = useAppDispatch();
   const router = useRouter();
 
   useEffect(() => {
-    if (isOpen) setSelected([]);
+    if (isOpen) setSelectedId(null);
   }, [isOpen]);
 
   if (!isOpen) return null;
@@ -45,19 +47,21 @@ export default function TrainingsModal({
   };
 
   const toggleSelect = (id: string) => {
-    setSelected((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
-    );
+    setSelectedId((prev) => (prev === id ? null : id));
   };
 
   const handleStart = () => {
-    if (!selected.length) return;
-    const workout = trainings.find((t) => t._id === selected[0]);
+    if (!selectedId) return;
+    const workout = trainings.find((t) => t._id === selectedId);
     if (!workout) return;
 
     dispatch(setCurrentWorkout(workout));
     onClose();
-    router.push(`/fitness/workout?workoutId=${workout._id}`);
+    router.push(
+      courseId
+        ? `/fitness/workout?courseId=${courseId}&workoutId=${workout._id}`
+        : `/fitness/workout?workoutId=${workout._id}`,
+    );
   };
 
   return (
@@ -103,12 +107,12 @@ export default function TrainingsModal({
                       'w-6 h-6 rounded-full flex items-center justify-center border',
                       isCompleted
                         ? 'border-none'
-                        : selected.includes(item._id)
+                        : selectedId === item._id
                           ? 'bg-gray-400 border-none'
                           : 'border-gray-400 bg-white',
                     )}
                   >
-                    {(isCompleted || selected.includes(item._id)) && (
+                    {(isCompleted || selectedId === item._id) && (
                       <Image
                         src="/img/modals/done.svg"
                         alt="Check"
@@ -132,7 +136,7 @@ export default function TrainingsModal({
         <Button
           text={'Начать'}
           className="mt-6 w-full bg-[#BCEC30] rounded-full py-3 text-lg font-medium hover:brightness-95 transition"
-          disabled={!selected.length}
+          disabled={!selectedId}
           onClick={handleStart}
         />
       </div>

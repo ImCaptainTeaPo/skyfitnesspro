@@ -30,6 +30,7 @@ export default function Workout() {
   const token = useAppSelector((state) => state.auth.token);
   const params = useSearchParams();
   const workoutId = params.get('workoutId');
+  const courseIdParam = params.get('courseId');
   const [loading, setLoading] = useState(false);
   const [showPopup, setShowPopup] = useState(false);
   const [progressInputs, setProgressInputs] = useState<(number | undefined)[]>(
@@ -65,13 +66,23 @@ export default function Workout() {
         dispatch(setCurrentWorkout(workout));
 
         return getCourses().then((courses) => {
-          const course = courses.find((c) => c.workouts.includes(workoutId));
+          let course = courses.find((c) =>
+            courseIdParam
+              ? c._id === courseIdParam
+              : c.workouts.includes(workoutId),
+          );
+          if (course && workoutId && !course.workouts.includes(workoutId)) {
+            const fallback = courses.find((c) =>
+              c.workouts.includes(workoutId),
+            );
+            if (fallback) course = fallback;
+          }
           if (course) dispatch(setCurrentCourse(course));
         });
       })
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, [workoutId, token, dispatch]);
+  }, [workoutId, courseIdParam, token, dispatch]);
 
   useEffect(() => {
     const fetchWorkoutProgress = async () => {
@@ -93,6 +104,33 @@ export default function Workout() {
         );
       } catch (err) {
         if (err instanceof Error) {
+          const courses = await getCourses();
+          const membershipCourse = courses.find((c) =>
+            workoutId ? c.workouts.includes(workoutId) : false,
+          );
+          if (membershipCourse && membershipCourse._id !== currentCourse?._id) {
+            dispatch(setCurrentCourse(membershipCourse));
+            try {
+              const dataRetry: ApiResponseWorkoutProgressType =
+                await getWorkoutProgress(
+                  membershipCourse._id,
+                  workoutId!,
+                  token,
+                );
+              dispatch(
+                setWorkoutProgress({
+                  courseId: membershipCourse._id,
+                  workoutId: workoutId!,
+                  progressData: dataRetry.progressData ?? [],
+                }),
+              );
+              return;
+            } catch (retryErr) {
+              if (retryErr instanceof Error) {
+                toast.error(retryErr.message);
+              }
+            }
+          }
           toast.error(err.message);
         }
       }
@@ -109,7 +147,16 @@ export default function Workout() {
   };
   const handleInputChange = (index: number, value: string) => {
     const updated = [...progressInputs];
-    updated[index] = value === '' ? undefined : Math.max(0, Number(value));
+    const maxQty = workout?.exercises?.[index]?.quantity ?? Infinity;
+    const isDigitsOnly = /^\d*$/.test(value);
+    if (!isDigitsOnly) {
+      updated[index] = undefined;
+      setProgressInputs(updated);
+      return;
+    }
+    const numeric = value === '' ? undefined : Math.max(0, Number(value));
+    updated[index] =
+      numeric === undefined ? undefined : Math.min(maxQty, numeric);
     setProgressInputs(updated);
   };
 
@@ -117,11 +164,12 @@ export default function Workout() {
     e.preventDefault();
     if (!currentCourse?._id || !workoutId) return;
     const mergedProgress =
-      workout?.exercises?.map((_, i) => {
+      workout?.exercises?.map((ex, i) => {
+        const maxQty = ex.quantity;
         const inputValue = progressInputs[i];
-        return inputValue !== undefined
-          ? inputValue
-          : (initialProgress[i] ?? 0);
+        const base =
+          inputValue !== undefined ? inputValue : (initialProgress[i] ?? 0);
+        return Math.min(maxQty, Math.max(0, base));
       }) ?? [];
 
     try {
@@ -186,7 +234,6 @@ export default function Workout() {
                 <div key={i}>
                   <div className="pb-2.5 text-lg font-normal">
                     {`${cutWorkoutName(ex.name)} (${ex.quantity} раз) ${progress}%`}
-                    
                   </div>
                   <ProgressBar progress={progress} />
                 </div>
@@ -196,9 +243,11 @@ export default function Workout() {
           <div className="pt-10 mx-auto">
             <Button
               text={
-                hasProgress
-                  ? 'Обновить свой прогресс'
-                  : 'Заполнить свой прогресс'
+                workout.exercises && workout.exercises.length > 0
+                  ? hasProgress
+                    ? 'Обновить свой прогресс'
+                    : 'Заполнить свой прогресс'
+                  : 'Отметить как выполненное'
               }
               className="h-12.5 sm:w-80 text-lg w-full"
               onClick={handleOpen}
@@ -213,7 +262,11 @@ export default function Workout() {
             className="bg-white rounded-[30px] p-10 w-[400px] max-h-[525px] shadow-lg flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 className="text-[32px] pb-12 font-normal">{'Мой прогресс'}</h2>
+            <h2 className="text-[32px] pb-12 font-normal">
+              {workout.exercises && workout.exercises.length > 0
+                ? 'Мой прогресс'
+                : 'Тренировка выполнена'}
+            </h2>
             <form
               onSubmit={handleSubmit}
               className="flex flex-col flex-1 overflow-y-auto pr-5 custom-scroll"
@@ -224,12 +277,15 @@ export default function Workout() {
                     <div key={i} className="flex flex-col">
                       <label className="text-lg font-normal leading-[110%] pb-2.5">
                         Сколько раз вы сделали {cutWorkoutName(ex.name, 35)}?
-                        <span className="text-gray-500">(из {ex.quantity})</span>
+                        <span className="text-gray-500">
+                          (из {ex.quantity})
+                        </span>
                       </label>
                       <Input
                         type="number"
                         placeholder={(initialProgress[i] ?? 0).toString()} // <-- текущий прогресс из API
                         min="0"
+                        max={ex.quantity}
                         value={progressInputs[i] ?? ''}
                         onChange={(e) => handleInputChange(i, e.target.value)}
                       />

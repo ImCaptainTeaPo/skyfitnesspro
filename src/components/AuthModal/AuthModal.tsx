@@ -139,7 +139,7 @@ export default function AuthModal() {
         </div>
 
         <form onSubmit={handleSubmit}>
-          <div className="flex flex-col gap-2.5 pb-8.5">
+          <div className="flex flex-col gap-2.5 pb-2.5">
             <input
               name="email"
               placeholder="Эл. почта"
@@ -169,11 +169,14 @@ export default function AuthModal() {
               />
             )}
           </div>
-          {passwordMismatch && (
-            <div className="text-red-500 text-xs">Пароли не совпадают</div>
-          )}
 
-          {error && <div className="pt-2 text-red-500 text-xs">{error}</div>}
+          <div className="min-h-[20px]">
+            {passwordMismatch && (
+              <div className="text-red-500 text-xs">Пароли не совпадают</div>
+            )}
+            {error && <div className="text-red-500 text-xs">{error}</div>}
+          </div>
+          <div className="pb-6"></div>
 
           <div className="flex flex-col gap-2.5">
             {mode === 'login' ? (

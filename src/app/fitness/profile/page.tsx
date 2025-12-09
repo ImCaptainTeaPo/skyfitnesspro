@@ -9,17 +9,27 @@ import CourseCard from '@/components/CourseCard/CourseCard';
 import TrainingsModal from '@/components/TrainingsModal/TrainingsModal';
 import { getImagePath } from '@/utils/getImagePath';
 import { filterCoursesByIds, calculateCourseProgress } from '@/utils/helpers';
-import { getCourses } from '@/services/courseApi';
-import { setAllCourses, setCourseProgress } from '@/store/features/courseSlice';
+import {
+  getCourses,
+  getCourseWorkout,
+  getCourseProgress,
+  updateWorkoutProgress,
+  delUserCourse,
+  addUserCourse,
+} from '@/services/courseApi';
+import {
+  setAllCourses,
+  setCourseProgress,
+  setWorkoutProgress,
+} from '@/store/features/courseSlice';
 import type { CourseCardType } from '@/types/courseCard';
-import { getCourseWorkout, getCourseProgress } from '@/services/courseApi';
+
 import { toast } from 'react-toastify';
 import { WorkoutType, ApiResponseCourseProgressType } from '@/types/courseType';
 
 type TrainingItem = WorkoutType;
 
 export default function UserProfile() {
-
   const [modalCourseId, setModalCourseId] = useState<string | null>(null);
   const { allCourses, favoriteCourses, courseProgress } = useAppSelector(
     (state) => state.courses,
@@ -68,11 +78,46 @@ export default function UserProfile() {
     } catch (err) {
       if (err instanceof Error) {
         toast.error(err.message);
-       
+
         setTrainings([]);
       }
     } finally {
       setModalLoading(false);
+    }
+  };
+
+  const handleResetCourseProgress = async (course: CourseCardType) => {
+    try {
+      try {
+        await delUserCourse({ courseId: course._id }, { token });
+        await addUserCourse({ courseId: course._id }, { token });
+      } catch (err) {
+        const uniqueIds = Array.from(new Set(course.workouts ?? []));
+        for (const id of uniqueIds) {
+          await updateWorkoutProgress(
+            course._id,
+            id,
+            { progressData: [], workoutCompleted: false },
+            token,
+          );
+        }
+      }
+      dispatch(
+        setCourseProgress({
+          courseId: course._id,
+          workouts: (course.workouts ?? []).map((id) => ({
+            workoutId: id,
+            workoutCompleted: false,
+            progressData: [],
+          })),
+          progress: 0,
+        }),
+      );
+      await handleOpenTrainings(course);
+    } catch (err) {
+      if (err instanceof Error) {
+        toast.error(err.message);
+      }
     }
   };
 
@@ -104,7 +149,6 @@ export default function UserProfile() {
           } catch (err) {
             if (err instanceof Error) {
               toast.error(err.message);
-              
             }
           }
         }
@@ -156,6 +200,7 @@ export default function UserProfile() {
               isProgress
               progress={courseProgress[course._id]?.progress ?? 0}
               onOpenTrainings={handleOpenTrainings}
+              onResetCourseProgress={handleResetCourseProgress}
             />
           ))}
         </div>
@@ -167,6 +212,7 @@ export default function UserProfile() {
         title={modalTitle}
         trainings={trainings}
         loading={modalLoading}
+        courseId={modalCourseId}
         courseProgress={
           modalCourseId
             ? courseProgress[modalCourseId]?.workouts?.reduce(
